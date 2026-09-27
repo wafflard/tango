@@ -117,6 +117,30 @@ mark{background:linear-gradient(transparent 50%,var(--mark) 50%);color:inherit;p
 .bkpanel textarea#bkIn{font-size:16px}
 .bkrow{display:flex;gap:8px;margin-top:8px}
 .bkrow .btn{padding:10px 12px;font-size:.9rem}
+.acctbar{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.78rem;color:var(--muted);margin:0 0 8px;flex-wrap:wrap}
+.acctbtns{display:flex;gap:4px}
+.authov{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;padding:max(24px,env(safe-area-inset-top)) 16px 32px}
+.authbox{max-width:400px;margin:6vh auto 0;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 20px;display:flex;flex-direction:column;gap:12px}
+.authtitle{font-size:1.25rem;margin:0}
+.authtabs{align-self:flex-start}
+.afield{display:flex;flex-direction:column;gap:6px;font-size:.85rem;font-weight:700}
+.afield input{font:16px var(--sans);padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.afield input:focus-visible{outline:3px solid var(--mark);outline-offset:1px}
+.afield input:disabled{opacity:.7}
+.ahint{font-size:.78rem;color:var(--muted);line-height:1.6;margin:0}
+.amsg{font-size:.85rem;line-height:1.6;margin:0;padding:10px 12px;border-radius:10px;background:var(--chip)}
+.aerr{font-size:.85rem;color:var(--again);margin:0;min-height:1em}
+.aguest{align-self:center;font-size:.8rem}
+.authbox .btn{width:100%}
+.adminbox{max-width:720px}
+.adminhead{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.adminhead .btn{width:auto;flex:none;padding:8px 14px}
+.admintbl{overflow-x:auto}
+.admintbl table{border-collapse:collapse;width:100%;font-size:.85rem}
+.admintbl th,.admintbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.admintbl th:first-child,.admintbl td:first-child,.admintbl th:nth-child(2),.admintbl td:nth-child(2){text-align:left}
+.admintbl th{font-size:.75rem;color:var(--muted);font-weight:700}
+.admintbl .old{color:var(--again)}
 .note{font-size:.8rem;color:var(--again);margin:12px 0 0}
 [hidden]{display:none!important}
 .actions{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
@@ -136,6 +160,7 @@ mark{background:linear-gradient(transparent 50%,var(--mark) 50%);color:inherit;p
 </head>
 <body>
 <div class="wrap">
+  <div class="acctbar" id="acctBar"><span id="acctText">ログイン確認中…</span><span class="acctbtns"><button class="linkbtn" id="adminBtn" hidden>講師用：進み具合</button><button class="linkbtn" id="acctBtn" hidden></button></span></div>
   <header>
     <select id="bookSel" class="booksel" aria-label="単語帳"></select>
     <span class="count" id="count"></span>
@@ -216,6 +241,30 @@ mark{background:linear-gradient(transparent 50%,var(--mark) 50%);color:inherit;p
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="authov" id="authOv" hidden>
+  <form class="authbox" id="authForm" autocomplete="on" novalidate>
+    <h2 class="authtitle">単語カード</h2>
+    <div class="seg authtabs" id="authTabs" role="group" aria-label="ログインか新規作成">
+      <button type="button" data-t="login" aria-pressed="true">ログイン</button><button type="button" data-t="signup" aria-pressed="false">新規作成</button>
+    </div>
+    <p class="amsg" id="aMsg" hidden></p>
+    <label class="afield" id="fId">ID<input id="aId" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+    <label class="afield" id="fPw">パスワード<input id="aPw" name="password" type="password" autocomplete="current-password"></label>
+    <label class="afield su" id="fPw2">パスワード（確認）<input id="aPw2" type="password" autocomplete="new-password"></label>
+    <label class="afield su inv" id="fInv">招待コード<input id="aInv" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+    <p class="ahint su">IDは半角の英小文字・数字・「-」「_」で3〜20文字、パスワードは6文字以上です。忘れると自分では再設定できないので、メモしておいてください。</p>
+    <p class="aerr" id="aErr" role="alert"></p>
+    <button type="submit" class="btn primary" id="aGo">ログイン</button>
+    <button type="button" class="linkbtn aguest" id="aGuest">ログインせずに使う（この端末にのみ保存）</button>
+  </form>
+</div>
+<div class="authov" id="adminOv" hidden>
+  <div class="authbox adminbox">
+    <div class="adminhead"><h2 class="authtitle">進み具合</h2><button type="button" class="btn" id="adminClose">閉じる</button></div>
+    <p class="ahint" id="adminNote"></p>
+    <div class="admintbl" id="adminTbl"></div>
+  </div>
+</div>
 
 <script>
 let W=[
@@ -389,12 +438,13 @@ function fmt(day){const d=new Date(day*864e5);return `${d.getUTCMonth()+1}/${d.g
 function stage(n){return srs[n]?srs[n].s:0;}
 function isDue(n){const r=srs[n];return !!r&&r.s>=1&&r.s<PASS&&r.due<=today();}
 function loadSrs(){srs={};try{
-  const v=localStorage.getItem(BK+"-srs");
+  const v=localStorage.getItem(skey());
   if(v)srs=JSON.parse(v)||{};
-  else if(BK===KEY){const old=localStorage.getItem(KEY);if(old){const t=today();JSON.parse(old).forEach(n=>{srs[n]={s:1,due:t+1,learned:t,last:t};});localStorage.setItem(BK+"-srs",JSON.stringify(srs));}}
+  else if(!acctId&&BK===KEY){const old=localStorage.getItem(KEY);if(old){const t=today();JSON.parse(old).forEach(n=>{srs[n]={s:1,due:t+1,learned:t,last:t};});localStorage.setItem(skey(),JSON.stringify(srs));}}
 }catch(e){}}
 function load(){try{autoSpeak=localStorage.getItem(KEY+"-auto")==="1";const o=localStorage.getItem(KEY+"-order");if(o==="seq"||o==="random")order=o;}catch(e){}}
-function save(){try{localStorage.setItem(BK+"-srs",JSON.stringify(srs));}catch(e){}queueCloud();}
+function skey(){return (acctId?"u:"+acctId+":":"")+BK+"-srs";}
+function save(){try{localStorage.setItem(skey(),JSON.stringify(srs));}catch(e){}queueCloud();}
 
 /* ---- バックアップ（復元コード） ---- */
 function b64e(str){return btoa(unescape(encodeURIComponent(str)));}
@@ -436,10 +486,22 @@ $("bkRestore").onclick=()=>{
 };
 
 /* ---- クラウド同期（ログイン中の本人だけが読み書きできる領域に保存） ---- */
-let cloudDb=null, cloudUid=null, cloudTimer=null, cloudChain=Promise.resolve(), cloudState="local";
+let cloudDb=null, cloudUid=null, cloudTimer=null, cloudChain=Promise.resolve(), cloudState="local", cloudPending=false;
+let acctId=null, acctUid=null, isAdminUser=false;
 function setSync(st){cloudState=st;const el=$("syncState");if(!el)return;
-  el.textContent={local:("この端末に保存"+(lastBackupText()?`（${lastBackupText()}）`:"")),loading:"記録を読み込み中…",saving:"クラウドに保存中…",saved:"クラウドに保存済み",error:"クラウド保存に失敗（端末には保存済み）"}[st]||"";}
-function cloudRef(){return cloudDb&&cloudUid&&BK?cloudDb.collection("data/users/"+cloudUid).doc("srs-"+BK):null;}
+  el.textContent={local:("この端末に保存"+(lastBackupText()?`（${lastBackupText()}）`:"")),loading:"記録を読み込み中…",saving:"保存中…",saved:"サーバーに保存済み",error:"サーバー保存に失敗（端末には保存済み）"}[st]||"";}
+function cloudRef(){
+  if(acctId&&window.FB&&BK){
+    const r=FB.doc(FB.db,"accounts",acctId,"progress",BK);
+    return {get:async()=>{const x=await FB.getDoc(r);return {exists:x.exists(),data:()=>x.data()};},set:body=>FB.setDoc(r,body)};
+  }
+  return cloudDb&&cloudUid&&BK?cloudDb.collection("data/users/"+cloudUid).doc("srs-"+BK):null;
+}
+function srsStats(o){
+  const t=today();let passed=0,reviewing=0,due=0,last=0;
+  Object.values(o||{}).forEach(r=>{if(!r||!r.s)return;if(r.s>=PASS)passed++;else{reviewing++;if(r.due<=t)due++;}if(r.last>last)last=r.last;});
+  return {passed,reviewing,due,last};
+}
 function newer(a,b){ // どちらの記録を採用するか
   if(!a)return b; if(!b)return a;
   const ua=a.u||0, ub=b.u||0;
@@ -457,22 +519,24 @@ async function cloudPull(){
     const changedLocal=JSON.stringify(merged)!==JSON.stringify(srs);
     const changedRemote=JSON.stringify(merged)!==JSON.stringify(remote);
     srs=merged;
-    try{localStorage.setItem(BK+"-srs",JSON.stringify(srs));}catch(e){}
+    try{localStorage.setItem(skey(),JSON.stringify(srs));}catch(e){}
     if(changedLocal){renderProgress(); if(!cur)build(); else{const [bl,bc]=statusLabel(cur.n);$("num").innerHTML=`${cur.n}<span class="badge ${bc}">${bl}</span>`;$("rec").textContent=recordText(cur.n);}}
     if(changedRemote)queueCloud(true); else setSync("saved");
   }catch(e){setSync("error");}
 }
 function queueCloud(now){
   if(!cloudRef())return;
-  clearTimeout(cloudTimer); setSync("saving");
+  clearTimeout(cloudTimer); setSync("saving"); cloudPending=true;
   cloudTimer=setTimeout(()=>{
+    cloudTimer=null;
     const ref=cloudRef(); if(!ref)return;
-    const body={srs:JSON.parse(JSON.stringify(srs)),updatedAt:Date.now()};
-    cloudChain=cloudChain.then(()=>ref.set(body)).then(()=>{if(!cloudTimer||true)setSync("saved");}).catch(async e=>{
-      if(e&&e.code==="unavailable"){await new Promise(r=>setTimeout(r,1500+Math.random()*1500));try{await ref.set(body);setSync("saved");return;}catch(_){}}
+    const snapSrs=JSON.parse(JSON.stringify(srs));
+    const body={srs:snapSrs,updatedAt:Date.now(),stats:srsStats(snapSrs)};
+    cloudChain=cloudChain.then(()=>ref.set(body)).then(()=>{if(!cloudTimer){cloudPending=false;setSync("saved");}}).catch(async e=>{
+      if(e&&e.code==="unavailable"){await new Promise(r=>setTimeout(r,1500+Math.random()*1500));try{await ref.set(body);if(!cloudTimer){cloudPending=false;setSync("saved");}return;}catch(_){}}
       setSync("error");
     });
-  },now?0:1200);
+  },now?0:2500);
 }
 async function initCloud(){
   try{
@@ -484,7 +548,185 @@ async function initCloud(){
     await cloudPull();
   }catch(e){setSync("local");}
 }
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&cloudRef())cloudPull();});
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){if(cloudPending&&cloudTimer)queueCloud(true);}
+  else if(cloudRef())cloudPull();
+});
+/* ---- ログイン（Firebase） ---- */
+const ID_DOMAIN="tango.example.com";
+let authMode="login", signingUp=false, guestMode=false;
+function idToEmail(id){return id+"@"+ID_DOMAIN;}
+function validId(id){return /^[a-z0-9_-]{3,20}$/.test(id);}
+function authErr(e){
+  const c=(e&&e.code)||"";
+  if(/invalid-credential|wrong-password|user-not-found|invalid-login-credentials|invalid-email/.test(c))return "IDかパスワードが違います。";
+  if(/email-already-in-use/.test(c))return "このIDはすでに使われています。別のIDにしてください。";
+  if(/weak-password/.test(c))return "パスワードは6文字以上にしてください。";
+  if(/too-many-requests/.test(c))return "何度も失敗したため、一時的にロックされています。しばらく待ってからやり直してください。";
+  if(/network-request-failed|unavailable/.test(c))return "通信できませんでした。電波のよい所でやり直してください。";
+  if(/permission-denied/.test(c))return "招待コードが違うか、このIDは使えません。";
+  return "うまくいきませんでした（"+(c||"不明なエラー")+"）。";
+}
+function setAuthMode(m,msg){
+  authMode=m;
+  $("authTabs").hidden=(m==="complete");
+  $("authTabs").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===m)));
+  const su=(m==="signup");
+  document.querySelectorAll("#authForm .su").forEach(el=>{el.hidden=!su;});
+  $("fInv").hidden=!(m==="signup"||m==="complete");
+  $("fPw").hidden=(m==="complete");
+  $("aId").disabled=(m==="complete");
+  $("aPw").autocomplete=su?"new-password":"current-password";
+  $("aGo").textContent=m==="login"?"ログイン":m==="signup"?"登録してはじめる":"登録を完了する";
+  $("aMsg").hidden=!msg; $("aMsg").textContent=msg||"";
+  $("aErr").textContent="";
+}
+function showLogin(m,msg){
+  setAuthMode(m||"login",msg);
+  $("authOv").hidden=false;
+}
+function hideLogin(){$("authOv").hidden=true;}
+function renderAcct(){
+  if(acctId){
+    $("acctText").textContent="ID："+acctId;
+    $("acctBtn").textContent="ログアウト";
+  }else{
+    $("acctText").textContent="ログインしていません（この端末にのみ保存）";
+    $("acctBtn").textContent="ログイン";
+  }
+  $("acctBtn").hidden=false;
+  $("adminBtn").hidden=!(acctId&&isAdminUser);
+}
+function importGuestData(id){
+  BOOKS.forEach(b=>{
+    try{
+      const g=localStorage.getItem(b.key+"-srs"); const k="u:"+id+":"+b.key+"-srs";
+      if(g&&!localStorage.getItem(k))localStorage.setItem(k,g);
+    }catch(e){}
+  });
+}
+async function enterAccount(id,uid,opts){
+  opts=opts||{};
+  acctId=id;acctUid=uid;guestMode=false;
+  try{localStorage.setItem(KEY+"-acct",id);localStorage.removeItem(KEY+"-guest");}catch(e){}
+  if(opts.importGuest)importGuestData(id);
+  hideLogin();
+  loadSrs();renderProgress();if(!cur)build();
+  isAdminUser=false;renderAcct();
+  cloudPull();
+  try{const a=await FB.getDoc(FB.doc(FB.db,"admins",uid));isAdminUser=a.exists();}catch(e){isAdminUser=false;}
+  renderAcct();
+}
+function leaveAccount(){
+  acctId=null;acctUid=null;isAdminUser=false;
+  try{localStorage.removeItem(KEY+"-acct");}catch(e){}
+  loadSrs();renderProgress();if(!cur)build();
+  setSync("local");renderAcct();
+}
+async function claimAccount(id,uid,invite){
+  const ref=FB.doc(FB.db,"accounts",id);
+  try{await FB.setDoc(ref,{uid,createdAt:Date.now(),invite,reset:false});return "new";}
+  catch(e){await FB.updateDoc(ref,{uid,reset:false,invite});return "reclaimed";}
+}
+async function submitAuth(ev){
+  ev.preventDefault();
+  if(!window.FB){$("aErr").textContent="サーバーにつながっていません。少し待ってからやり直すか、「ログインせずに使う」を選んでください。";return;}
+  const id=($("aId").value||"").trim().toLowerCase(), pw=$("aPw").value||"", inv=($("aInv").value||"").trim();
+  $("aErr").textContent="";
+  if(!validId(id)){$("aErr").textContent="IDは半角の英小文字・数字・「-」「_」で3〜20文字にしてください。";return;}
+  $("aGo").disabled=true;
+  try{
+    if(authMode==="login"){
+      await FB.signInWithEmailAndPassword(FB.auth,idToEmail(id),pw);
+    }else{
+      if(authMode==="signup"){
+        if(pw.length<6){$("aErr").textContent="パスワードは6文字以上にしてください。";return;}
+        if(pw!==$("aPw2").value){$("aErr").textContent="確認用のパスワードが一致しません。";return;}
+      }
+      if(!inv){$("aErr").textContent="招待コードを入れてください。";return;}
+      signingUp=true;
+      let user=FB.auth.currentUser;
+      if(!user||user.email!==idToEmail(id)){
+        const cred=await FB.createUserWithEmailAndPassword(FB.auth,idToEmail(id),pw);user=cred.user;
+      }
+      const how=await claimAccount(id,user.uid,inv);
+      signingUp=false;
+      await enterAccount(id,user.uid,{importGuest:how==="new"});
+      toast(how==="new"?"登録しました":"アカウントを引き継ぎました","ok");
+    }
+  }catch(e){
+    signingUp=false;
+    if(authMode!=="login"&&FB.auth.currentUser&&/permission-denied/.test((e&&e.code)||"")){
+      setAuthMode("complete","ID「"+id+"」は作成できました。正しい招待コードを入れて登録を完了してください。");
+      $("aId").value=id;
+    }
+    $("aErr").textContent=authErr(e);
+  }finally{$("aGo").disabled=false;}
+}
+function onAuthUser(user){
+  if(signingUp)return;
+  if(!user){
+    if(acctId)leaveAccount();
+    let g=false;try{g=localStorage.getItem(KEY+"-guest")==="1";}catch(e){}
+    guestMode=g;renderAcct();
+    if(!g)showLogin("login");
+    return;
+  }
+  const id=(user.email||"").split("@")[0];
+  FB.getDoc(FB.doc(FB.db,"accounts",id)).then(x=>{
+    if(x.exists()&&x.data().uid===user.uid&&!x.data().reset)enterAccount(id,user.uid);
+    else{$("aId").value=id;showLogin("complete","招待コードを入れて登録を完了してください。");}
+  }).catch(e=>{
+    const c=(e&&e.code)||"";
+    if(/permission-denied/.test(c)){$("aId").value=id;showLogin("complete","招待コードを入れて登録を完了してください。");}
+    else enterAccount(id,user.uid); // 通信できないときは端末の記録で続ける
+  });
+}
+async function doLogout(){
+  if(cloudPending){queueCloud(true);try{await new Promise(r=>setTimeout(r,50));await cloudChain;}catch(e){}}
+  try{await FB.signOut(FB.auth);}catch(e){}
+  try{localStorage.removeItem(KEY+"-guest");}catch(e){}
+  leaveAccount();showLogin("login");
+}
+function fmtDay(d){return d?fmt(d):"—";}
+async function openAdmin(){
+  $("adminOv").hidden=false;$("adminNote").textContent="読み込み中…";$("adminTbl").innerHTML="";
+  try{
+    const list=await FB.getDocs(FB.collection(FB.db,"accounts"));
+    const ids=[];list.forEach(d=>ids.push(d.id));ids.sort();
+    const rows=[];
+    for(const id of ids){
+      for(const b of BOOKS){
+        let st=null;
+        try{const x=await FB.getDoc(FB.doc(FB.db,"accounts",id,"progress",b.key));if(x.exists())st=srsStats((x.data()||{}).srs);}catch(e){}
+        if(st&&(st.passed||st.reviewing))rows.push({id,book:b.name,...st});
+      }
+      if(!rows.some(r=>r.id===id))rows.push({id,book:"（まだ記録なし）",passed:0,reviewing:0,due:0,last:0});
+    }
+    const t=today();
+    $("adminNote").textContent=`登録者 ${ids.length}人。「最終学習日」が3日以上前のものは赤で表示しています。`;
+    $("adminTbl").innerHTML=`<table><thead><tr><th>ID</th><th>単語帳</th><th>合格</th><th>復習中</th><th>今日の復習</th><th>最終学習日</th></tr></thead><tbody>${
+      rows.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.book)}</td><td>${r.passed}</td><td>${r.reviewing}</td><td>${r.due}</td><td class="${r.last&&t-r.last>=3?"old":""}">${fmtDay(r.last)}</td></tr>`).join("")
+    }</tbody></table>`;
+  }catch(e){$("adminNote").textContent="読み込めませんでした（"+((e&&e.code)||"エラー")+"）。";}
+}
+function initAuth(){
+  $("authForm").addEventListener("submit",submitAuth);
+  $("authTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>setAuthMode(b.dataset.t));
+  $("aGuest").onclick=()=>{guestMode=true;try{localStorage.setItem(KEY+"-guest","1");}catch(e){}hideLogin();renderAcct();};
+  $("acctBtn").onclick=()=>{if(acctId)doLogout();else showLogin("login");};
+  $("adminBtn").onclick=openAdmin;
+  $("adminClose").onclick=()=>{$("adminOv").hidden=true;};
+  const start=()=>{FB.onAuthStateChanged(FB.auth,onAuthUser);};
+  if(window.FB)start();
+  else{
+    window.addEventListener("fb-ready",start,{once:true});
+    setTimeout(()=>{if(!window.FB){
+      if(acctId){renderAcct();setSync("error");}
+      else{let g=false;try{g=localStorage.getItem(KEY+"-guest")==="1";}catch(e){}renderAcct();if(!g)showLogin("login","サーバーにつながりません。電波を確認するか、「ログインせずに使う」を選んでください。");}
+    }},8000);
+  }
+}
 function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function hl(s){return esc(s).replace(/\{(.+?)\}/g,"<mark>$1</mark>");}
 let rFrom=0,rTo=0;
@@ -740,10 +982,27 @@ function setBook(id,persist){
 $("bookSel").innerHTML=BOOKS.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("");
 $("bookSel").onchange=e=>setBook(e.target.value,true);
 load();$("autoSpeak").checked=autoSpeak;renderOrder();
+try{const la=localStorage.getItem(KEY+"-acct");if(la&&validId(la))acctId=la;}catch(e){}
 let savedBook=null;try{savedBook=localStorage.getItem(KEY+"-book");}catch(e){}
 setBook(savedBook||BOOKS[0].id,false);
 initCloud();
+initAuth();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+</script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,updateDoc,collection,getDocs} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const app=initializeApp({
+  apiKey:"AIzaSyAvEyjFEcpVwDnkABiht8NKbh28yOF6TqY",
+  authDomain:"tango-card-803c5.firebaseapp.com",
+  projectId:"tango-card-803c5",
+  storageBucket:"tango-card-803c5.firebasestorage.app",
+  messagingSenderId:"108000532025",
+  appId:"1:108000532025:web:ff1a0f3d73d7a7f25e9fe8"
+});
+window.FB={auth:getAuth(app),db:getFirestore(app),onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,doc,getDoc,setDoc,updateDoc,collection,getDocs};
+window.dispatchEvent(new Event("fb-ready"));
 </script>
 </body>
 </html>

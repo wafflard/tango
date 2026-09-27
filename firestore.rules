@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function inviteOk() {
+      return request.resource.data.invite ==
+        get(/databases/$(database)/documents/config/invite).data.code;
+    }
+    function isOwnId(id) {
+      return signedIn() && request.auth.token.email == id + '@tango.example.com';
+    }
+    function acct(id) {
+      return get(/databases/$(database)/documents/accounts/$(id)).data;
+    }
+
+    // 招待コードなどの設定（誰も読み書きできない。管理画面からのみ編集）
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // 講師アカウントの一覧（管理画面からのみ追加）
+    match /admins/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if false;
+    }
+
+    // 生徒のアカウント（IDごと）
+    match /accounts/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+
+      // 新規登録：正しい招待コードが必要
+      allow create: if isOwnId(id)
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt', 'invite', 'reset'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.reset == false
+        && inviteOk();
+
+      // パスワード再発行後の引き継ぎ：講師が reset を true にしたときだけ
+      allow update: if isOwnId(id)
+        && resource.data.reset == true
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.reset == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid', 'reset', 'invite'])
+        && inviteOk();
+
+      allow delete: if false;
+
+      // 学習記録（単語帳ごと）
+      match /progress/{book} {
+        allow read: if isAdmin() || (signedIn() && acct(id).uid == request.auth.uid);
+        allow write: if signedIn() && acct(id).uid == request.auth.uid && acct(id).reset == false;
+      }
+    }
+  }
+}
